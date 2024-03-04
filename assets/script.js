@@ -102,6 +102,7 @@ jQuery(function($) {
     });
     $("#response_action").delegate(".remove_font","click", function(e){
         //$(this).remove();
+        e.preventDefault();
         $(this).parents('.list-group-item').remove();
     });
     

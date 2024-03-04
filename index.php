@@ -60,8 +60,71 @@ class gfonts {
                     </div>
                     <div id="cont_action">
                         <div id="response_action">
-                        <?php 
+
+                        <?php
                         $txtclassfont = "";
+                        $themejson = WP_CONTENT_DIR  . '/themes/' . get_option( 'stylesheet' ) . '/theme.json';
+                        if(file_exists($themejson)):
+                        
+                            $datathemejson = json_decode(file_get_contents($themejson), true)['settings']['typography']['fontFamilies'];
+                            foreach ($datathemejson as $key => $entry) {
+                                //print_r($entry['fontFamily']);
+                                $bc_gfonts_weight = '';
+
+
+                                $ch = curl_init();
+                                curl_setopt($ch, CURLOPT_URL, 'https://www.googleapis.com/webfonts/v1/webfonts?capability=WOFF2&key='.get_option( 'bc_key_gfont' )."&family=".$entry['slug']);
+                                curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                                    "Content-Type: application/json"
+                                ));
+                                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);    
+                                $fonts_list = json_decode(curl_exec($ch), true);
+                                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                                curl_close($ch);
+                                //$fonts_list['items'][0]['variants']
+
+                                foreach ($entry['fontFace'] as $keyff => $entryff) {
+                                    if($bc_gfonts_weight != ''){
+                                        $bc_gfonts_weight .= ',';
+                                    }
+                                    
+                                        $bc_gfonts_weight .= $entryff['fontWeight'];
+                                }
+
+                                
+                                ?>
+                                <div class="list-group-item <?php echo str_replace(" ","_",$entry['slug']); ?>" data-font="<?php echo $entry['name']; ?>" data-weight="<?php echo implode(",",$fonts_list['items'][0]['variants']); ?>">
+                                    <div>
+                                    <strong><?php echo $entry['fontFamily']; ?></strong>
+                                        <div class="preview_font" style="font-family: <?php echo $entry['fontFamily']; ?>"></div>
+                                    <br>
+                                        <div>
+                                            <input type="checkbox" checked name="bc_gfonts[<?php echo $entry['name']; ?>]" class="chk_font" value="<?php echo $entry['name']; ?>">
+                                            <input type="hidden" name="bc_gfonts[<?php echo $entry['name']; ?>][bc_gfonts_weight]" value="<?php echo $bc_gfonts_weight; ?>">
+                                            
+                                            <?php foreach($fonts_list['items'][0]['variants'] as $key) { 
+                                                if (!str_contains($key, 'italic')) {
+                                                    if($key == 'regular') $key = '400';
+                                                ?>
+                                                <label class="lbl_weight"><input <?php if (in_array($key, explode(',',$bc_gfonts_weight) )) echo 'checked'; ?> type="checkbox" name="bc_gfonts[<?php echo $entry['name']; ?>][chk_weight][]" data-font="<?php echo $entry['name']; ?>" data-qryfont="<?php echo str_replace(" ","+",$entry['name']); ?>" class="chk_weight" value="<?php echo str_replace("400","regular",$key); ?>"><span><?php echo str_replace("regular","400",$key); ?></span></label>
+                                            <?php 
+                                                }
+                                            } ?>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <a href="#" class="remove_font button-secondary delete"><span class="dashicons dashicons-trash" style="vertical-align: text-top;"></span> Rimuovi</a>
+                                    </div>
+                                </div>
+
+
+                                <?php
+                            }
+                        ?>
+
+                        <?php else:?>
+                        <?php 
                         //print_r($this->bc_gfonts_options);
                         if(isset($this->bc_gfonts_options) && is_array($this->bc_gfonts_options)):
                             foreach($this->bc_gfonts_options as $name => $v ){
@@ -94,6 +157,9 @@ class gfonts {
                             }
                         endif;
                         ?>
+
+                        <?php endif; ?>
+                        
                         </div>
                         <?php if($txtclassfont != ""): ?>
                             <br><br><br>
@@ -134,7 +200,10 @@ class gfonts {
           //echo "$to created\r\n";
         }
         $family = "";
+        $arrayfontjson = [];
+        $arrayfontFamilies = array();
         foreach($input as $name => $v ){
+            
             $family .= "&family=".str_replace(" ","+",$name);
         }
         if($family != ""){
@@ -151,6 +220,13 @@ class gfonts {
             $txtfont = "";
             $txtclassfont = "";
             foreach($fonts_list['items'] as $values) {
+                $arrayfontFacejson = array();
+
+                $arrayfontFacejson['fontFamily'] = $values['family'];
+                $arrayfontFacejson['name'] = $values['family'];
+                $arrayfontFacejson['slug'] = str_replace(" ","+",$values['family']);
+                $arrayfontFacejson['fontFace'] = array();
+
                 foreach($input[$values['family']]['chk_weight'] as $weight) {
                     if (!str_contains($weight, 'italic')) {
                         if (!file_put_contents($folder_gfont . $values['family'] . "_" . $weight . '.woff2', file_get_contents($values['files'][$weight]))){
@@ -163,19 +239,40 @@ class gfonts {
                                 $txtfont .= "   font-weight: ".str_replace("regular","400",$weight).";" . PHP_EOL;
                                 $txtfont .= "   src: url('".$values['family'] . "_" . $weight . ".woff2') format('woff2');" . PHP_EOL;
                                 $txtfont .= "}" . PHP_EOL;
+                                $arrayfontFacejsonitem = array();
+                                $arrayfontFacejsonitem["fontFamily"] = $values['family'];
+                                $arrayfontFacejsonitem["fontWeight"] = str_replace("regular","400",$weight);
+                                $arrayfontFacejsonitem["fontStyle"] = "normal";
+                                $arrayfontFacejsonitem["fontStretch"] = "";
+                                $arrayfontFacejsonitem["src"] = [
+                                "file:./gfonts/".$values['family'] . "_" . $weight . ".woff2"
+                                ];
+                                array_push($arrayfontFacejson['fontFace'],$arrayfontFacejsonitem);
                         }
                     }
                 }
                 $txtclassfont .= ".font-" . str_replace(" ","-",$values['family']) . "{" . PHP_EOL;
                 $txtclassfont .= "  font-family: '".$values['family']."';" . PHP_EOL;
                 $txtclassfont .= "}" . PHP_EOL;
+                array_push($arrayfontFamilies,$arrayfontFacejson);
             }
 
             $filecss = fopen($folder_gfont."fonts.css", "w") or die("Unable to open file!");
             fwrite($filecss, $txtfont.$txtclassfont);
             fclose($filecss);
         }
+        $themejson = WP_CONTENT_DIR  . '/themes/' . get_option( 'stylesheet' ) . '/theme.json';
+        if(file_exists($themejson)){
+            $datathemejson = json_decode(file_get_contents($themejson), true);
+            
+            
+            $datathemejson['settings']['typography']['fontFamilies'] = $arrayfontFamilies;
 
+
+            file_put_contents($themejson, json_encode($datathemejson,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES   ));
+
+            $input = null;
+        }
 		return $input;
     }
     public function load_enqueue(){
@@ -185,9 +282,12 @@ class gfonts {
     }
     
     public function load_font(){
-        $file_gfont = WP_CONTENT_DIR  . '/themes/' . get_option( 'stylesheet' ) . '/gfonts/fonts.css';
-        if(file_exists($file_gfont)){
-            wp_enqueue_style( 'bc_gfont-css', get_stylesheet_directory_uri().'/gfonts/fonts.css');
+        $themejson = WP_CONTENT_DIR  . '/themes/' . get_option( 'stylesheet' ) . '/theme.json';
+        if(!file_exists($themejson)){
+            $file_gfont = WP_CONTENT_DIR  . '/themes/' . get_option( 'stylesheet' ) . '/gfonts/fonts.css';
+            if(file_exists($file_gfont)){
+                wp_enqueue_style( 'bc_gfont-css', get_stylesheet_directory_uri().'/gfonts/fonts.css');
+            }
         }
     }
 
