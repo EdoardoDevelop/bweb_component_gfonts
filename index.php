@@ -10,7 +10,7 @@
 class gfonts {
     private $bc_gfonts_options;
 	public function __construct() {	
-	if(!isset(get_option( 'bc_key_gfont' ))){
+	if(!get_option( 'bc_key_gfont' )){
 		add_option('bc_key_gfont', 'AIzaSyDU6NpGQZCsvykdP37jacEdRKmHpGSumEo');
 	}
         add_action( 'admin_menu', array( $this, 'add_plugin_page' ) );
